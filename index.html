@@ -400,7 +400,7 @@ table{width:100%;min-width:0}
 </style>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
-<link rel="preconnect" href="https://xuneyneqdqvxqgvszxfb.supabase.co" crossorigin>
+<link rel="preconnect" href="https://lcbrngbfbmluqfmrejqt.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//xuneyneqdqvxqgvszxfb.supabase.co">
 
 <style id="recent-repairs-compact-layout">
@@ -1023,13 +1023,13 @@ html, body, #app, .layout, .main, .page {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (()=>{
-const SUPABASE_URL='https://xuneyneqdqvxqgvszxfb.supabase.co';
-const SUPABASE_ANON_KEY='sb_publishable_YeHWu8MXXM2NQ9swRNW9bQ_AmjF3DcZ';
+const SUPABASE_URL='https://lcbrngbfbmluqfmrejqt.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_WQefgAuhMMvDynAFmHO1aQ_SlCEoVzP';
 const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat('fr-FR').format(Number(n)||0)+' FCFA',esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Le SDK Supabase peut être absent hors ligne : l'espace local doit quand même démarrer.
 const supabaseUnavailable=!(window.supabase&&typeof window.supabase.createClient==='function');
 const offlineError=()=>new Error('Supabase est indisponible hors connexion. Les données locales restent accessibles.');
-const offlineQuery={select(){return this;},eq(){return this;},order(){return this;},in(){return this;},upsert:async()=>({data:null,error:offlineError()}),delete(){return this;},single:async()=>({data:null,error:offlineError()}),then(resolve,reject){return Promise.resolve({data:null,error:offlineError()}).then(resolve,reject);}};
+const offlineQuery={select(){return this;},eq(){return this;},order(){return this;},in(){return this;},upsert:async()=>({data:null,error:offlineError()}),delete(){return this;},single:async()=>({data:null,error:offlineError()}),maybeSingle:async()=>({data:null,error:offlineError()}),then(resolve,reject){return Promise.resolve({data:null,error:offlineError()}).then(resolve,reject);}};
 let sb=supabaseUnavailable?{
   auth:{getSession:async()=>({data:{session:null},error:null}),signOut:async()=>({error:null}),signInWithPassword:async()=>({data:null,error:offlineError()}),signUp:async()=>({data:null,error:offlineError()}),resetPasswordForEmail:async()=>({error:offlineError()}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
   from:()=>offlineQuery,channel:()=>({on(){return this;},subscribe(){return this;}}),removeChannel:async()=>({}),functions:{invoke:async()=>({data:null,error:offlineError()})}
@@ -1148,7 +1148,7 @@ const techProBridgeReady=new Promise(resolve=>{resolveTechProBridgeReady=resolve
 window.__techProBridgeReady=()=>resolveTechProBridgeReady?.();
 let repairs=[],stock=[],suppliers=[],appointments=[],account=null,currentUser=null,currentProfile=null,promptInstall=null;
 const saveQueues={};
-const tableSnapshots={repairs:null,stock:null,suppliers:null};
+const tableSnapshots={repairs:null,stock:null,suppliers:null,appointments:null};
 let realtimeChannel=null,realtimeRefreshTimers={},realtimeApplying=false;
 const LAST_AUTH_USER_KEY='techpro:last-authenticated-user';
 function hadAuthenticatedUser(){try{return !!localStorage.getItem(LAST_AUTH_USER_KEY);}catch(_){return false;}}
@@ -1330,17 +1330,17 @@ function saveLocalTable(table,rows){
 }
 function put(key,value){
   if(Array.isArray(value))value.forEach(row=>{if(row&&typeof row==='object')row.app='couturepro';});
-  const table=key==='ao_repairs'?'repairs':key==='ao_stock'?'stock':key==='ao_suppliers'?'suppliers':null;
+  const table=key==='ao_repairs'?'repairs':key==='ao_stock'?'stock':key==='ao_suppliers'?'suppliers':key==='ao_appointments'?'appointments':null;
   if(isReadOnly()&&table){
     if(table==='repairs')repairs=cloneRows(tableSnapshots.repairs||[]);
     if(table==='stock')stock=cloneRows(tableSnapshots.stock||[]);
-    if(table==='suppliers')suppliers=cloneRows(tableSnapshots.suppliers||[]);
+    if(table==='suppliers')suppliers=cloneRows(tableSnapshots.suppliers||[]);if(table==='appointments')appointments=cloneRows(tableSnapshots.appointments||[]);
     render();toast('Consultation seule : renouvelez votre abonnement pour modifier les données.');
     return Promise.resolve(false);
   }
   if(key==='ao_repairs')repairs=value;
   if(key==='ao_stock')stock=value;
-  if(key==='ao_suppliers')suppliers=value;
+  if(key==='ao_suppliers')suppliers=value;if(key==='ao_appointments')appointments=value;
   if(!table||!currentUser||realtimeApplying)return Promise.resolve();
   const desired=cloneRows(value);
   // Écriture locale synchrone avant tout appel réseau : une fermeture immédiate ne perd pas la saisie.
@@ -1379,7 +1379,7 @@ function put(key,value){
 async function syncPendingLocalData(){
   if(!currentUser||!navigator.onLine)return false;
   const uid=currentUser.id;
-  for(const table of ['repairs','stock','suppliers']){
+  for(const table of ['repairs','stock','suppliers','appointments']){
     const pending=readLocal(uid,'pending:'+table,null);
     if(!pending||!Array.isArray(pending.rows))continue;
     // La copie locale est la référence : on réémet toutes les lignes (upsert idempotent)
@@ -1419,12 +1419,12 @@ async function syncAllData(manual=false){
     const {data:profile,error:profileError}=await sb.from('profiles').select('*').eq('id',uid).single();
     if(profileError)throw profileError;
     if(profile){currentProfile=profile;const access=subscriptionAccess(profile);account={...account,shop:profile.shop_name,name:profile.full_name,email:profile.email||currentUser.email,phone:profile.phone,trialEndsAt:profile.trial_ends_at,createdAt:profile.created_at,subscriptionStatus:access.mode,subscriptionEndsAt:profile.subscription_ends_at||profile.trial_ends_at};writeLocal(uid,'profile',profile);writeLocal(uid,'account',account);}
-    const results=await Promise.all(['repairs','stock','suppliers'].map(loadTable));
+    const results=await Promise.all(['repairs','stock','suppliers','appointments'].map(loadTable));
     realtimeApplying=true;
-    ['repairs','stock','suppliers'].forEach((table,i)=>{
+    ['repairs','stock','suppliers','appointments'].forEach((table,i)=>{
       const rows=results[i];
       if(readLocal(uid,'pending:'+table,null))return;
-      if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else suppliers=rows;
+      if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else if(table==='suppliers')suppliers=rows;if(table==='appointments')appointments=rows;else if(table==='appointments')appointments=rows;
       tableSnapshots[table]=cloneRows(rows);writeLocal(uid,table,rows);
     });
     realtimeApplying=false;
@@ -1458,7 +1458,7 @@ function stopRealtimeSync(){
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
 }
 async function refreshRealtimeTable(table){
-  if(!currentUser||!['repairs','stock','suppliers'].includes(table))return;
+  if(!currentUser||!['repairs','stock','suppliers','appointments'].includes(table))return;
   const uid=currentUser.id;
   if(readLocal(uid,'pending:'+table,null))return;
   try{
@@ -1470,7 +1470,7 @@ async function refreshRealtimeTable(table){
       repairs=rows;
     }
     if(table==='stock')stock=rows;
-    if(table==='suppliers')suppliers=rows;
+    if(table==='suppliers')suppliers=rows;if(table==='appointments')appointments=rows;
     tableSnapshots[table]=cloneRows(rows);
     const openPage=document.querySelector('.page:not(.hidden)')?.id?.replace(/Page$/,'')||'home';
     renderOpenPage(openPage,window.currentRepairId||null);
@@ -1482,7 +1482,7 @@ function startRealtimeSync(){
   if(!currentUser)return;
   const uid=currentUser.id;
   realtimeChannel=sb.channel('techpro-live-'+uid);
-  ['repairs','stock','suppliers'].forEach(table=>{
+  ['repairs','stock','suppliers','appointments'].forEach(table=>{
     // INSERT et UPDATE peuvent être filtrés par user_id.
     realtimeChannel.on('postgres_changes',{event:'INSERT',schema:'public',table,filter:'user_id=eq.'+uid},()=>scheduleRealtimeRefresh(table));
     realtimeChannel.on('postgres_changes',{event:'UPDATE',schema:'public',table,filter:'user_id=eq.'+uid},()=>scheduleRealtimeRefresh(table));
@@ -1495,7 +1495,7 @@ function startRealtimeSync(){
     if(status==='SUBSCRIBED'){
       // Au premier abonnement et après reconnexion, récupérer les changements
       // qui auraient eu lieu pendant une coupure réseau.
-      ['repairs','stock','suppliers'].forEach(scheduleRealtimeRefresh);
+      ['repairs','stock','suppliers','appointments'].forEach(scheduleRealtimeRefresh);
     }
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Connexion temporairement interrompue ; une nouvelle tentative sera effectuée.');
   });
@@ -1542,7 +1542,7 @@ async function refreshOpenPageAndData(){
       stock:['stock','suppliers'],
       suppliers:['suppliers','stock'],
       cash:['repairs'],
-      subscription:[]
+      appointments:['appointments','repairs'],subscription:[]
     };
     const names=pageTables[pageNow]||['repairs'];
     const results=await Promise.all(names.map(t=>loadTable(t)));
@@ -1553,7 +1553,7 @@ async function refreshOpenPageAndData(){
         rows.forEach(r=>{if(!Array.isArray(r.payments)){r.payments=[];if(Number(r.advance)>0)r.payments.push({amount:Number(r.advance),date:r.created||Date.now(),note:'Avance enregistrée avant le suivi détaillé'});}r.advance=r.payments.reduce((n,p)=>n+(Number(p.amount)||0),0);});
         repairs=rows;
       }else if(table==='stock')stock=rows;
-      else if(table==='suppliers')suppliers=rows;
+      else if(table==='suppliers')suppliers=rows;if(table==='appointments')appointments=rows;else if(table==='appointments')appointments=rows;
       tableSnapshots[table]=cloneRows(rows);
       writeLocal(uid,table,rows);
     });
@@ -1647,12 +1647,12 @@ function renderWorkspace(uid,user){
   const cachedProfile=readLocal(uid,'profile',null),cachedAccount=readLocal(uid,'account',null);
   currentProfile=cachedProfile||currentProfile;account=cachedAccount||account;
   repairs=readLocal(uid,'repairs',[]);stock=readLocal(uid,'stock',[]);suppliers=readLocal(uid,'suppliers',[]);appointments=readLocal(uid,'appointments',[]);
-  ['repairs','stock','suppliers'].forEach(t=>{const rows=readLocal(uid,t,null);tableSnapshots[t]=Array.isArray(rows)?cloneRows(rows):[];});
+  ['repairs','stock','suppliers','appointments'].forEach(t=>{const rows=readLocal(uid,t,null);tableSnapshots[t]=Array.isArray(rows)?cloneRows(rows):[];});
   repairs.forEach(r=>{if(!Array.isArray(r.payments)){r.payments=[];if(Number(r.advance)>0)r.payments.push({amount:Number(r.advance),date:r.created||Date.now(),note:'Avance enregistrée avant le suivi détaillé'});}r.advance=r.payments.reduce((n,p)=>n+(Number(p.amount)||0),0);});
   $('startupSplash')?.remove();hideSessionRestore();$('auth').classList.add('hidden');$('app').classList.remove('hidden');
   $('shopTitle').textContent=account?.shop||'Votre atelier';document.title=(account?.shop||'Votre atelier')+' — CouturePro';
   $('userName').textContent=account?.name||'';$('avatar').textContent=(account?.name||'A')[0].toUpperCase();
-  render();renderSubscriptionNotice();
+  render();renderSubscriptionNotice();window.dispatchEvent(new CustomEvent('couturepro:user-ready',{detail:{userId:uid}}));
   const savedPageKey='couturepro:lastPage:'+uid,savedDetailKey='couturepro:lastDetail:'+uid;
   let savedPage='home';try{savedPage=sessionStorage.getItem(savedPageKey)||'home';}catch(_){}
   const allowedPages=['home','clients','repairs','detail','stock','suppliers','appointments','cash','subscription'];
@@ -1685,9 +1685,9 @@ async function start(session){
   if(!['active','trial','expired','suspended'].includes(String(profile.subscription_status||'').toLowerCase()))throw new Error('Accès non autorisé.');
   account={shop:profile.shop_name,name:profile.full_name,email:profile.email||user.email,phone:profile.phone,trialEndsAt:profile.trial_ends_at,createdAt:profile.created_at,subscriptionStatus:access.mode,subscriptionEndsAt:profile.subscription_ends_at||profile.trial_ends_at};
   writeLocal(uid,'profile',profile);writeLocal(uid,'account',account);
-  for(const table of ['repairs','stock','suppliers']){
+  for(const table of ['repairs','stock','suppliers','appointments']){
     const rows=await loadTable(table);
-    if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else suppliers=rows;
+    if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else if(table==='suppliers')suppliers=rows;if(table==='appointments')appointments=rows;else if(table==='appointments')appointments=rows;
     tableSnapshots[table]=cloneRows(rows);writeLocal(uid,table,rows);
   }
   localStorage.setItem('couturepro:initialized:'+uid,'1');
@@ -2011,7 +2011,7 @@ function appointmentModal(id){
  const old=appointments.find(a=>a.id===id)||{date:new Date().toISOString().slice(0,10),time:'09:00',client:'',phone:'',reason:'Prise de mesures',notes:'',status:'À venir'};
  $('modal').innerHTML=`<div class="modalbg" id="rdvBg"><div class="modal" style="max-width:560px"><div class="modalhead"><h2>${id?'Modifier le rendez-vous':'Nouveau rendez-vous'}</h2><button class="close" id="rdvClose">×</button></div><form id="appointmentForm"><div class="grid"><div class="field"><label>Date *</label><input name="date" type="date" required value="${esc(old.date||'')}"></div><div class="field"><label>Heure *</label><input name="time" type="time" required value="${esc(old.time||'09:00')}"></div><div class="field"><label>Nom du client *</label><input name="client" required list="rdvClients" value="${esc(old.client||'')}" placeholder="Nom du client"><datalist id="rdvClients">${[...new Set(repairs.map(r=>r.name).filter(Boolean))].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div><div class="field"><label>Téléphone</label><input name="phone" type="tel" value="${esc(old.phone||'')}" placeholder="Numéro du client"></div><div class="field wide"><label>Motif du rendez-vous *</label><select name="reason" required>${['Prise de mesures','Essayage','Retouches','Choix du modèle / tissu','Livraison / retrait','Autre'].map(v=>`<option ${old.reason===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Statut</label><select name="status">${['À venir','Terminé','Annulé'].map(v=>`<option ${old.status===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field wide"><label>Notes / instructions</label><textarea name="notes" placeholder="Détails utiles pour le rendez-vous…">${esc(old.notes||'')}</textarea></div></div><div class="tools" style="justify-content:flex-end"><button type="button" class="btn light" id="rdvCancel">Annuler</button><button class="btn primary">Enregistrer le RDV</button></div></form></div></div>`;
  const close=()=>$('modal').innerHTML='';$('rdvClose').onclick=$('rdvCancel').onclick=close;$('rdvBg').onclick=e=>{if(e.target.id==='rdvBg')close()};
- $('appointmentForm').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));if(id)Object.assign(old,d,{updated:Date.now()});else appointments.push({...d,id:'RDV'+Date.now().toString(36),created:Date.now(),app:'couturepro'});appointments.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));if(currentUser)writeLocal(currentUser.id,'appointments',appointments);close();renderAppointments();toast('Rendez-vous enregistré');};
+ $('appointmentForm').onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));if(id)Object.assign(old,d,{updated:Date.now()});else appointments.push({...d,id:'RDV'+Date.now().toString(36),created:Date.now(),app:'couturepro'});appointments.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));put('ao_appointments',appointments);close();renderAppointments();toast('Rendez-vous enregistré');};
 }
 function renderAppointments(){
  if(!$('appointmentRows'))return;const now=new Date(),today=now.toISOString().slice(0,10),q=($('appointmentSearch')?.value||'').toLowerCase(),filter=$('appointmentFilter')?.value||'all';
@@ -2019,7 +2019,7 @@ function renderAppointments(){
  $('rdvUpcoming').textContent=future.length;$('rdvToday').textContent=todayRows.length;$('rdvDone').textContent=appointments.filter(a=>a.status==='Terminé').length;$('rdvCancelled').textContent=appointments.filter(a=>a.status==='Annulé').length;
  const rows=appointments.filter(a=>[a.client,a.phone,a.reason,a.notes].join(' ').toLowerCase().includes(q)).filter(a=>filter==='all'||(filter==='upcoming'&&a.status==='À venir'&&(a.date||'')>=today)||(filter==='today'&&a.date===today&&a.status==='À venir')||(filter==='done'&&a.status==='Terminé')||(filter==='cancelled'&&a.status==='Annulé')).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
  $('appointmentRows').innerHTML=rows.map(a=>`<tr><td data-label="Date"><b>${a.date?new Date(a.date+'T12:00:00').toLocaleDateString('fr-FR'):'—'}</b></td><td data-label="Heure">${esc(a.time||'—')}</td><td data-label="Client"><b>${esc(a.client)}</b></td><td data-label="Téléphone">${esc(a.phone||'—')}</td><td data-label="Motif">${esc(a.reason)}</td><td data-label="Notes">${esc(a.notes||'—')}</td><td data-label="Statut"><span class="pill ${a.status==='Terminé'?'termine':a.status==='Annulé'?'diagnostic':'encours'}">${esc(a.status)}</span></td><td data-label="Actions">${(()=>{const match=repairs.find(r=>normalizeClientWhatsApp(r.phone)===normalizeClientWhatsApp(a.phone)&&normalizeClientWhatsApp(a.phone));if(match)return clientWhatsAppButton(ordersForClient(match),'');const ph=normalizeClientWhatsApp(a.phone);return ph?`<a class="btn" style="background:#20b65a;color:#fff;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${ph}?text=${encodeURIComponent('Bonjour '+(a.client||'')+', message de '+String(account?.shop||account?.shopName||'Atelier de couture').trim()+'. Concernant notre rendez-vous du '+(a.date||'')+' à '+(a.time||'')+'.')}">WhatsApp</a>`:''})()} <button class="btn light small" data-rdv-edit="${esc(a.id)}">Modifier</button> <button class="btn danger small" data-rdv-delete="${esc(a.id)}">Supprimer</button></td></tr>`).join('');
- $('appointmentEmpty').classList.toggle('hidden',rows.length>0);$('appointmentRows').querySelectorAll('[data-rdv-edit]').forEach(b=>b.onclick=()=>appointmentModal(b.dataset.rdvEdit));$('appointmentRows').querySelectorAll('[data-rdv-delete]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer ce rendez-vous ?')){appointments=appointments.filter(a=>a.id!==b.dataset.rdvDelete);if(currentUser)writeLocal(currentUser.id,'appointments',appointments);renderAppointments();toast('Rendez-vous supprimé');}});
+ $('appointmentEmpty').classList.toggle('hidden',rows.length>0);$('appointmentRows').querySelectorAll('[data-rdv-edit]').forEach(b=>b.onclick=()=>appointmentModal(b.dataset.rdvEdit));$('appointmentRows').querySelectorAll('[data-rdv-delete]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer ce rendez-vous ?')){appointments=appointments.filter(a=>a.id!==b.dataset.rdvDelete);put('ao_appointments',appointments);renderAppointments();toast('Rendez-vous supprimé');}});
 }
 $('addAppointment').onclick=()=>appointmentModal();$('appointmentSearch').oninput=renderAppointments;$('appointmentFilter').onchange=renderAppointments;
 function renderStock(){let q=($('stockSearch').value||'').toLowerCase(),a=stock.filter(s=>(s.name+' '+s.ref).toLowerCase().includes(q));$('stockRefs').textContent=stock.length;$('stockQty').textContent=stock.reduce((n,s)=>n+s.qty,0);$('stockLow').textContent=stock.filter(s=>s.qty<=s.alert).length;$('stockVal').textContent=fmt(stock.reduce((n,s)=>n+s.qty*s.price,0));$('stockRows').innerHTML=a.map(s=>`<tr><td data-label="Article"><b>${esc(s.name)}</b></td><td data-label="Référence">${esc(s.ref||'—')}</td><td data-label="Quantité"><b style="${s.qty<=s.alert?'color:#bd4b43':''}">${s.qty}</b></td><td data-label="Seuil alerte">${s.alert}</td><td data-label="Fournisseur">${esc(suppliers.find(v=>v.id===s.supplierId)?.name||'—')}</td><td data-label="Prix unitaire">${fmt(s.price)}</td><td data-label="Valeur">${fmt(s.qty*s.price)}</td><td data-label="Actions"><button class="btn light small" data-sedit="${s.id}">Modifier</button> <button class="btn danger small" data-sdel="${s.id}">×</button></td></tr>`).join('');$('stockEmpty').classList.toggle('hidden',a.length>0);document.querySelectorAll('[data-sedit]').forEach(b=>b.onclick=()=>stockModal(b.dataset.sedit));document.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer cet article ?')){stock=stock.filter(s=>s.id!==b.dataset.sdel);put('ao_stock',stock);renderStock();toast('Article supprimée')}})}$('stockSearch').oninput=renderStock;
@@ -2123,7 +2123,32 @@ let deferred=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDef
  } catch(_) {}
  function persistHistory(){
    try { localStorage.setItem(historyKey(),JSON.stringify(history.slice(-HISTORY_LIMIT))); } catch(_) {}
+   const uid=(typeof currentUser!=='undefined'&&currentUser?.id)||'';
+   if(uid&&navigator.onLine&&typeof sb!=='undefined'){
+     sb.from('assistant_history').upsert({user_id:uid,payload:{app:'couturepro',messages:history.slice(-HISTORY_LIMIT),updatedAt:Date.now()}},{onConflict:'user_id'}).then(({error})=>{if(error)console.warn('Historique assistant non synchronisé :',error.message);}).catch(err=>console.warn('Historique assistant non synchronisé :',err));
+   }
  }
+ async function loadCloudHistory(){
+   const uid=(typeof currentUser!=='undefined'&&currentUser?.id)||'';
+   if(!uid||!navigator.onLine||typeof sb==='undefined')return;
+   try{
+     const {data,error}=await sb.from('assistant_history').select('payload').eq('user_id',uid).maybeSingle();
+     if(error)throw error;
+     const cloud=Array.isArray(data?.payload?.messages)?data.payload.messages:[];
+     const cloudLatest=Math.max(0,...cloud.map(m=>Number(m.at)||0));
+     const localLatest=Math.max(0,...history.map(m=>Number(m.at)||0));
+     if(cloud.length&&cloudLatest>=localLatest){
+       history=cloud.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.text==='string').slice(-HISTORY_LIMIT);
+       try{localStorage.setItem(historyKey(),JSON.stringify(history));}catch(_){}
+       body.innerHTML='';history.forEach(m=>add(m.text,m.role,false));
+     }else if(history.length){
+       const {error:saveError}=await sb.from('assistant_history').upsert({user_id:uid,payload:{app:'couturepro',messages:history.slice(-HISTORY_LIMIT),updatedAt:Date.now()}},{onConflict:'user_id'});
+       if(saveError)throw saveError;
+     }
+   }catch(err){console.warn('Chargement historique assistant :',err.message||err);}
+ }
+ window.addEventListener('couturepro:user-ready',loadCloudHistory);
+ if(typeof currentUser!=='undefined'&&currentUser?.id)loadCloudHistory();
  function add(text,who,save=true){
    const el=document.createElement('div');
    el.className='as-msg'+(who==='user'?' user':'');
