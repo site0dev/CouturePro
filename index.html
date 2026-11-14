@@ -2240,4 +2240,18 @@ let deferred=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDef
  input.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
 })();
 </script>
+
+<style id="couturepro-navigation-bas-mobile-fix">
+/* Navigation mobile/tablette en bas : les mêmes boutons et data-page sont conservés. */
+@media (max-width: 1000px) {
+  .layout { display:block !important; width:100% !important; min-height:calc(100dvh - 62px) !important; }
+  .layout > aside { display:none !important; }
+  .layout > .main { display:block !important; width:100% !important; max-width:100% !important; min-width:0 !important; margin:0 !important; padding:19px 12px calc(105px + env(safe-area-inset-bottom)) !important; }
+  nav.mobile { display:flex !important; position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important; z-index:1000 !important; width:100% !important; max-width:100% !important; min-height:70px !important; padding:7px 4px calc(7px + env(safe-area-inset-bottom)) !important; gap:0 !important; overflow-x:auto !important; overflow-y:hidden !important; justify-content:flex-start !important; align-items:stretch !important; background:#292823 !important; border-top:1px solid rgba(221,199,154,.3) !important; box-shadow:0 -8px 24px rgba(20,19,16,.18) !important; }
+  nav.mobile button { display:flex !important; flex:0 0 68px !important; min-width:68px !important; min-height:54px !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; gap:4px !important; padding:3px 2px !important; color:#c7c0b3 !important; background:transparent !important; border:0 !important; font-size:9px !important; line-height:1.15 !important; white-space:nowrap !important; }
+  nav.mobile button.active { color:#e0c48f !important; font-weight:850 !important; }
+  nav.mobile button svg { display:block !important; width:22px !important; height:22px !important; flex:none !important; stroke:currentColor !important; }
+  nav.mobile button span { display:block !important; max-width:100% !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+}
+</style>
 </body></html>
