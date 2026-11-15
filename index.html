@@ -1462,6 +1462,17 @@ async function writeCoutureProIDB(key,value){
     }catch(err){console.warn('Écriture IndexedDB impossible :',err);resolve(false);}
   });
 }
+// Regroupe les écritures rapprochées : la dernière version complète est conservée.
+const coutureProIDBWriteTimers=new Map();
+function scheduleCoutureProIDBWrite(key,value){
+  const previous=coutureProIDBWriteTimers.get(key);
+  if(previous)clearTimeout(previous);
+  const timer=setTimeout(()=>{
+    coutureProIDBWriteTimers.delete(key);
+    writeCoutureProIDB(key,value);
+  },350);
+  coutureProIDBWriteTimers.set(key,timer);
+}
 // Restaure le miroir IndexedDB avant de demander les données à Supabase.
 // Les valeurs déjà présentes dans localStorage restent prioritaires.
 async function restoreCoutureProIDBCache(){
@@ -1530,8 +1541,8 @@ function writeLocal(uid,kind,value){
     const key=localKey(uid,kind),serialized=JSON.stringify(value);
     localStorage.setItem(key,serialized);
     coutureProHotCache.set(key,value);
-    // IndexedDB reçoit une copie en arrière-plan ; le chemin synchrone reste inchangé.
-    writeCoutureProIDB(key,value);
+    // IndexedDB reçoit une copie regroupée en arrière-plan ; le cache local reste immédiat.
+    scheduleCoutureProIDBWrite(key,value);
     return true;
   }
   catch(err){console.error('Espace local insuffisant :',err);toast('Stockage local saturé. Exportez vos données et libérez de l’espace.');return false;}
@@ -1902,11 +1913,13 @@ async function start(session){
   if(!['active','trial','expired','suspended'].includes(String(profile.subscription_status||'').toLowerCase()))throw new Error('Accès non autorisé.');
   account={shop:profile.shop_name,name:profile.full_name,email:profile.email||user.email,phone:profile.phone,trialEndsAt:profile.trial_ends_at,createdAt:profile.created_at,subscriptionStatus:access.mode,subscriptionEndsAt:profile.subscription_ends_at||profile.trial_ends_at};
   writeLocal(uid,'profile',profile);writeLocal(uid,'account',account);
-  for(const table of ['repairs','stock','suppliers','appointments']){
-    const rows=await loadTable(table);
-    if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else if(table==='suppliers')suppliers=rows;if(table==='appointments')appointments=rows;else if(table==='appointments')appointments=rows;
+  // Première initialisation : les quatre tables sont lues en parallèle plutôt qu'en série.
+  const initialTables=await Promise.all(['repairs','stock','suppliers','appointments'].map(loadTable));
+  ['repairs','stock','suppliers','appointments'].forEach((table,index)=>{
+    const rows=initialTables[index];
+    if(table==='repairs')repairs=rows;else if(table==='stock')stock=rows;else if(table==='suppliers')suppliers=rows;else appointments=rows;
     tableSnapshots[table]=cloneRows(rows);writeLocal(uid,table,rows);
-  }
+  });
   localStorage.setItem('couturepro:initialized:'+uid,'1');
   renderWorkspace(uid,user);startRealtimeSync();
   updateSyncStatus('Compte initialisé. Les prochaines ouvertures utiliseront directement les données locales.');
@@ -2273,9 +2286,12 @@ async function restorePersistedSession(){
 }
 window.addEventListener('couturepro:retry-session-restore',()=>restorePersistedSession());
 (async()=>{try{
-  // Préparer le cache local en parallèle de l'initialisation du pont natif.
+  // Le cache IndexedDB est préparé en parallèle. Si l'espace est déjà en localStorage,
+  // l'ouverture ne patiente ni après IndexedDB ni après le pont natif.
   const coutureProCacheReady=restoreCoutureProIDBCache();
-  await Promise.race([coutureProBridgeReady,new Promise(resolve=>setTimeout(resolve,3000))]);
+  const cachedUid=(()=>{try{return localStorage.getItem(LAST_AUTH_USER_KEY)||'';}catch(_){return '';}})();
+  const hasCachedWorkspace=!!(cachedUid&&readLocal(cachedUid,'profile',null)&&readLocal(cachedUid,'account',null));
+  if(!hasCachedWorkspace)await Promise.race([coutureProBridgeReady,new Promise(resolve=>setTimeout(resolve,3000))]);
   if(isRecoveryReturn()){
     recoveryMode=true;recoveryStage='validating';
     try{await processRecoveryUrl(location.href);}
@@ -2289,7 +2305,8 @@ window.addEventListener('couturepro:retry-session-restore',()=>restorePersistedS
   }
   if(recoveryProcessing)await recoveryProcessing;
   if(recoveryMode||recoveryStage==='validating'||recoveryStage==='update')return;
-  await coutureProCacheReady;
+  if(!hasCachedWorkspace)await coutureProCacheReady;
+  else coutureProCacheReady.catch(err=>console.warn('Restauration du cache secondaire :',err));
   await restorePersistedSession();
 }catch(err){
   console.error('Restauration de session :',err);
