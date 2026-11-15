@@ -5,3 +5,6 @@ android/
 .env.*
 !.env.example
 .DS_Store
+*.jks
+*.keystore
+CouturePro-signing-password.txt

@@ -1,42 +1,37 @@
-
 workflows:
   couturepro-android-release:
     name: CouturePro - APK Android signé
     max_build_duration: 60
-
+    instance_type: mac_mini_m2
     environment:
       node: 22
       java: 21
       android_signing:
         - couturepro_release
-
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
     scripts:
       - name: Installer les dépendances
         script: npm install
-
       - name: Compiler l'application Web
         script: npm run build
-
-      - name: Générer Android
+      - name: Générer le projet Android si absent
         script: |
-          if [ ! -d android ]; then
-            npx cap add android
-          fi
-
+          if [ ! -d android ]; then npx cap add android; fi
       - name: Générer les icônes Android
         script: npx capacitor-assets generate --android
-
-      - name: Synchroniser Android
+      - name: Synchroniser Capacitor
         script: npx cap sync android
-
-      - name: Configurer la signature
+      - name: Configurer la signature Android
         script: node scripts/configure-android-signing.mjs
-
-      - name: Compiler APK signé
+      - name: Compiler l'APK signé
         script: |
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
-
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
