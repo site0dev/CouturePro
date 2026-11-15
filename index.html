@@ -1236,7 +1236,6 @@ th, td { white-space: normal !important; overflow-wrap: anywhere; word-break: br
 <button data-page="cash" aria-label="Caisse"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="15" rx="2"/><path d="M2.5 10h19M16 15h2M6 5V3h12v2"/></svg><span>Caisse</span></button>
 <button data-page="subscription" aria-label="Compte"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg><span>Compte</span></button>
 <button data-page="assistant" aria-label="Assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg><span>Assistant</span></button>
-<button id="install" class="btn light small hidden">Installer l’application</button>
 </nav></div><div id="modal"></div><div id="toast" class="toast hidden"></div>
 <!-- Supabase SDK chargé à la demande par ensureSupabaseClient() : aucun blocage du premier affichage. -->
 <script>
@@ -2311,7 +2310,7 @@ document.querySelectorAll('[data-auth]').forEach(button=>button.addEventListener
   }
   authPage(target);
 }));
-let deferred=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('install').classList.remove('hidden')});$('install').onclick=async()=>{if(deferred){deferred.prompt();await deferred.userChoice;deferred=null}};if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
+if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>{
       if(navigator.onLine)reg.update().catch(()=>{});
