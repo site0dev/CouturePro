@@ -1,0 +1,31 @@
+{
+  "name": "CouturePro - Gestion atelier de couture",
+  "short_name": "CouturePro",
+  "description": "Gestion des commandes, clients, mensurations, stock et caisse de votre atelier de couture.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#351064",
+  "theme_color": "#4b1685",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "orientation": "any"
+}

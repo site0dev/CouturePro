@@ -1,0 +1,36 @@
+workflows:
+  couturepro-android-debug:
+    name: CouturePro - Android APK (test)
+    max_build_duration: 60
+    environment:
+      node: 22
+      java: 21
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Installer les dépendances
+        script: |
+          npm install
+      - name: Compiler CouturePro Web
+        script: |
+          npm run build
+      - name: Générer le projet Android si absent
+        script: |
+          if [ ! -d android ]; then npx cap add android; fi
+      - name: Générer les icônes Android
+        script: |
+          npx capacitor-assets generate --android
+      - name: Synchroniser Capacitor
+        script: |
+          npx cap sync android
+      - name: Compiler l'APK de test
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
