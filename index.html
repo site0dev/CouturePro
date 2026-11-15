@@ -1714,9 +1714,17 @@ $('forgotRequestForm').onsubmit=async e=>{
   button.disabled=true;
   $('forgotRequestMsg').textContent='Envoi du lien de réinitialisation…';
   try{
-    const redirectTo=location.origin+'/?flow=recovery';
+    if(!await ensureSupabaseClient())throw new Error('Connexion au service d’authentification impossible. Vérifiez Internet puis réessayez.');
+    // Android doit revenir dans le même WebView pour retrouver le vérificateur PKCE
+    // conservé dans le stockage local de l’application. Le Web reste sur son domaine courant.
+    await Promise.race([coutureProBridgeReady,new Promise(resolve=>setTimeout(resolve,2500))]);
+    const isNative=window.CoutureProNative?.isNative===true;
+    const redirectTo=isNative
+      ? 'online.phenixconnect.couturepro://auth/recovery?flow=recovery'
+      : new URL('/?flow=recovery',location.origin).toString();
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
-    $('forgotRequestMsg').textContent=error?'Impossible d’envoyer le lien : '+error.message:'Si cette adresse correspond à un compte, un lien de réinitialisation vient d’être envoyé. Vérifiez votre boîte de réception et vos courriers indésirables.';
+    if(error)throw error;
+    $('forgotRequestMsg').textContent='Si cette adresse correspond à un compte, un lien de réinitialisation vient d’être envoyé. Vérifiez votre boîte de réception et vos courriers indésirables.';
   }catch(err){$('forgotRequestMsg').textContent='Erreur lors de l’envoi : '+(err.message||'réessayez.');}
   finally{button.disabled=false;}
 };
@@ -1746,33 +1754,40 @@ $('forgotUpdateForm').onsubmit=async e=>{
 $('logout').onclick=async()=>{stopPeriodicSync();stopRealtimeSync();clearAuthenticatedUser();await sb.auth.signOut();currentUser=null;account=null;currentProfile=null;repairs=[];stock=[];suppliers=[];tableSnapshots.repairs=tableSnapshots.stock=tableSnapshots.suppliers=null;recoveryMode=false;recoveryStage='idle';authPage('login');};
 // Le lien de récupération est validé explicitement avant d'afficher le formulaire de changement.
 async function processRecoveryUrl(rawUrl){
+  if(!rawUrl)return false;
   const incoming=new URL(rawUrl,location.href);
   const params=incoming.searchParams;
   const hashParams=new URLSearchParams((incoming.hash||'').replace(/^#/,'').replace(/^\//,''));
   const marked=params.get('flow')==='recovery'||params.get('type')==='recovery'||hashParams.get('type')==='recovery';
   if(!marked)return false;
+  // Afficher immédiatement l’écran de récupération : aucune restauration de l’atelier
+  // ne doit prendre le dessus pendant le traitement du lien.
   recoveryMode=true;recoveryStage='validating';
-  $('auth').classList.remove('hidden');$('app').classList.add('hidden');
+  $('startupSplash')?.remove();$('auth').classList.remove('hidden');$('app').classList.add('hidden');
   ['login','register'].forEach(id=>$(id).classList.add('hidden'));
   $('forgot').classList.remove('hidden');
   $('forgotTitle').textContent='Vérification du lien';
   $('forgotIntro').textContent='Nous vérifions votre lien de réinitialisation.';
   $('forgotRequestForm').classList.add('hidden');$('forgotUpdateForm').classList.add('hidden');
   $('forgotRequestMsg').textContent='';$('forgotUpdateMsg').textContent='Validation du lien…';
+  const authError=params.get('error_description')||params.get('error')||hashParams.get('error_description')||hashParams.get('error');
+  if(authError)throw new Error(decodeURIComponent(String(authError).replace(/\+/g,' ')));
+  if(!await ensureSupabaseClient())throw new Error('Le service de sécurité est indisponible. Vérifiez Internet puis demandez un nouveau lien.');
   const code=params.get('code');
   if(code){
     const {data,error}=await sb.auth.exchangeCodeForSession(code);
     if(error)throw error;
-    if(!data?.session)throw new Error('La session de récupération n’a pas pu être confirmée.');
+    if(!data?.session)throw new Error('La session de récupération n’a pas pu être confirmée. Le lien a peut-être déjà été utilisé.');
   }else if(hashParams.get('access_token')&&hashParams.get('refresh_token')){
     const {data,error}=await sb.auth.setSession({access_token:hashParams.get('access_token'),refresh_token:hashParams.get('refresh_token')});
     if(error)throw error;
     if(!data?.session)throw new Error('La session de récupération n’a pas pu être confirmée.');
   }else{
-    throw new Error('Le lien ne contient pas de code valide. Demandez un nouveau lien de réinitialisation.');
+    throw new Error('Le lien ne contient pas de code de récupération valide. Demandez un nouveau lien.');
   }
   showPasswordRecoveryForm();
-  history.replaceState({},document.title,location.pathname);
+  // Nettoyer le code/token de l’adresse après validation, sans quitter le WebView.
+  if(location.protocol==='http:'||location.protocol==='https:')history.replaceState({},document.title,location.pathname);
   return true;
 }
 

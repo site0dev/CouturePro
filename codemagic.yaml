@@ -22,6 +22,8 @@ workflows:
       - name: Générer le projet Android si absent
         script: |
           if [ ! -d android ]; then npx cap add android; fi
+      - name: Configurer le lien profond de récupération Android
+        script: node scripts/configure-android-deeplink.mjs
       - name: Générer les icônes Android
         script: npx capacitor-assets generate --android
       - name: Synchroniser Capacitor

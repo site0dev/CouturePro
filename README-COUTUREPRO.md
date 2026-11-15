@@ -31,5 +31,11 @@ Le workflow produit un APK **debug de test**. Il n'utilise volontairement pas la
 - Les fonctions Edge `create-fedapay-payment` et `fedapay-webhook` restent hébergées sur Supabase : elles ne sont pas intégrées dans l'APK.
 - Les secrets `FEDAPAY_SECRET_KEY`, `FEDAPAY_WEBHOOK_SECRET`, `ENV`, et les clés de service Supabase restent exclusivement dans Supabase Edge Function Secrets. Ne jamais les ajouter à GitHub, Vercel ou à l'application Android.
 
-## Limite à compléter pour la récupération de mot de passe dans l'APK
-L'URL de callback actuelle du HTML utilise le domaine web CouturePro (`location.origin`). Pour ouvrir automatiquement les liens de récupération dans l'application Android, il faudra connaître le domaine Vercel final puis configurer Android App Links et `assetlinks.json` avec l'empreinte SHA-256 du certificat CouturePro. Aucun domaine ni certificat n'est inventé dans ce paquet.
+## Récupération du mot de passe (Web + Android)
+- Sur le site Web, le lien revient sur le domaine courant avec `/?flow=recovery`.
+- Dans l'application Android, le lien revient dans le WebView via `online.phenixconnect.couturepro://auth/recovery?flow=recovery`. Le vérificateur PKCE reste ainsi dans le stockage local de l'application.
+- Le script `scripts/configure-android-deeplink.mjs` ajoute de manière idempotente le filtre Android nécessaire. Codemagic l'exécute après la création du projet Android et avant `cap sync`.
+
+**Action obligatoire dans Supabase :** dans Authentication > URL Configuration > Redirect URLs, ajouter exactement `online.phenixconnect.couturepro://auth/recovery`. Conserver aussi le domaine Web de production (et son URL `/?flow=recovery`) dans la liste des Redirect URLs. Le domaine de production n'étant pas indiqué dans les fichiers, le code Web utilise volontairement le domaine courant plutôt que d'en inventer un.
+
+Après modification, reconstruire et redéployer le site sur Vercel, puis lancer une nouvelle compilation Android sur Codemagic. Les liens de récupération envoyés avant cette mise à jour devront être remplacés par de nouveaux liens.

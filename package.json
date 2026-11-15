@@ -9,7 +9,8 @@
     "build": "npm run prepare:web && vite build",
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "android:deeplink": "node scripts/configure-android-deeplink.mjs"
   },
   "dependencies": {
     "@capacitor/app": "8.1.2",
